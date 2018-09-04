@@ -1,5 +1,6 @@
 package com.noob.skin;
 
+import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -23,32 +24,44 @@ import java.lang.reflect.Method;
 
 import dalvik.system.DexClassLoader;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        LayoutInflater.from(this).setFactory(new LayoutInflater.Factory() {
+            @Override
+            public View onCreateView(String name, Context context, AttributeSet attrs) {
+                Log.e("MainActivity", "name :" + name);
+                int count = attrs.getAttributeCount();
+                for (int i = 0; i < count; i++) {
+                    Log.e("MainActivity", "AttributeName :" + attrs.getAttributeName(i) + "AttributeValue :"+ attrs.getAttributeValue(i));
+                }
+                return null;
+            }
+        });
+
         setContentView(R.layout.activity_main);
     }
 
-    @Override
-    public View onCreateView(View parent, String name, Context context, AttributeSet attrs) {
-        Log.e("MainActivity2", name);
-        int count = attrs.getAttributeCount();
-        for (int i = 0; i < count; i++) {
-            Log.e("MainActivity2", "AttributeName :" + attrs.getAttributeName(i) + "AttributeValue :"+ attrs.getAttributeValue(i));
-        }
-        return super.onCreateView(parent, name, context, attrs);
-
-    }
-
-    @Override
-    public View onCreateView(String name, Context context, AttributeSet attrs) {
-        Log.e("MainActivity", name);
-        int count = attrs.getAttributeCount();
-        for (int i = 0; i < count; i++) {
-            Log.e("MainActivity", "AttributeName :" + attrs.getAttributeName(i) + "AttributeValue :"+ attrs.getAttributeValue(i));
-        }
-        return super.onCreateView(name, context, attrs);
-    }
+//    @Override
+//    public View onCreateView(View parent, String name, Context context, AttributeSet attrs) {
+//        Log.e("MainActivity2", name);
+//        int count = attrs.getAttributeCount();
+//        for (int i = 0; i < count; i++) {
+//            Log.e("MainActivity2", "AttributeName :" + attrs.getAttributeName(i) + "AttributeValue :"+ attrs.getAttributeValue(i));
+//        }
+//        return super.onCreateView(parent, name, context, attrs);
+//
+//    }
+//
+//    @Override
+//    public View onCreateView(String name, Context context, AttributeSet attrs) {
+//        Log.e("MainActivity", name);
+//        int count = attrs.getAttributeCount();
+//        for (int i = 0; i < count; i++) {
+//            Log.e("MainActivity", "AttributeName :" + attrs.getAttributeName(i) + "AttributeValue :"+ attrs.getAttributeValue(i));
+//        }
+//        return super.onCreateView(name, context, attrs);
+//    }
 }
