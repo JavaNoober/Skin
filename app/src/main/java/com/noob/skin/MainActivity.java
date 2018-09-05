@@ -44,21 +44,21 @@ public class MainActivity extends Activity {
 
 
 
-//        findViewById(R.id.btn).setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                finish();
-//                Intent intent = getIntent();
-//                if(themeState == 0){
-//                    intent.putExtra("themeState", 1);
-//                }else {
-//                    intent.putExtra("themeState", 0);
-//                }
-//                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-//                startActivity(intent);
-//                overridePendingTransition(0, 0);
-//            }
-//        });
+        findViewById(R.id.btn).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+                Intent intent = getIntent();
+                if(themeState == 0){
+                    intent.putExtra("themeState", 1);
+                }else {
+                    intent.putExtra("themeState", 0);
+                }
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                overridePendingTransition(0, 0);
+            }
+        });
 //
 //
 //        ResourceLoad.loadUnInstallApkRes(this, (ImageView) findViewById(R.id.image));

@@ -45,6 +45,8 @@
 
 切换主题：
 	
+通过调用setTheme()	
+	
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
 	    super.onCreate(savedInstanceState);
@@ -59,11 +61,12 @@
 	startActivity(intent);
 	overridePendingTransition(0, 0);
 
+效果如下：
+![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/theme.gif)
+
 ### 2.通过AssetManager切换主题
 下载皮肤包，通过AssetManager加载皮肤包里面的资源文件，实现资源替换。
-## Android-Skin-Loader
-![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/pic1.png)
-![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/pic2.png)
+
 ### ClassLoader
 Android可以通过classloader获取已安装apk或者未安装apk、dex、jar的context对象，从而通过反射去获取Class、资源文件等。
 
@@ -107,10 +110,13 @@ Android可以通过classloader获取已安装apk或者未安装apk、dex、jar�
 
 LayoutInflater.Factory是如何被调用的
 ![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/source1.png)
+setContentView最终调用了inflate方法，我们来看一下inflate方法的源码
 ![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/source2.png)
 ![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/source3.png)
+inflate最终调用了createViewFromTag方法来创建View,在这之中用到了factory，_**_如果factory存在就用factory创建对象，如果不存在就由系统自己去创建_**_。
 ![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/source4.png)
 
+我们在setContentView之前调用测试代码
 测试代码：
 
 	LayoutInflater.from(this).setFactory(new LayoutInflater.Factory() {
@@ -129,160 +135,16 @@ LayoutInflater.Factory是如何被调用的
 log日志：
 ![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/loginfo.png)
 
-### Android-Skin-Loader源码分析
+结果发现我们可以获取一个layout的所有View，此时我们就可以对View进行皮肤切换效果。
 
-#### 关键方法
+#### 通过AssetManager切换主题总结
+通过AssetManager和LayoutInflater.Factory配合就可以达到调用外部资源获取皮肤的方法。如果想要动态更新，只需要把需要动态更新的View存起来，去遍历设置皮肤，或者用eventBus去通知也可以。
 
-分别是添加和删除View的观察者的接口，以及一个更新的方法
-![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/main1.png)
-notifySkinUpdate具体逻辑
-![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/main2.png)
-#### 如何实现立即换肤
-![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/factory1.png)
-#### 如何开启新的Activity直接换肤换肤
-![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/factory2.png)
-#### 如何获取皮肤包资源
-SkinManager的初始化方法获得了AssetManager，从而获取了皮肤包的Resource对象
-
-	SkinManager.getInstance().loadSkin();
-
-
-	@SuppressLint("StaticFieldLeak")
-    private void load(SkinTheme theme, final ILoaderListener callback) {
-
-        new AsyncTask<SkinTheme, Void, Resources>() {
-
-            private boolean isNeedCopy(SkinTheme newsTheme) {
-                SkinTheme cacheTheme = SkinUtil.getTheme(context, newsTheme.name);
-                return SkinUtil.isNewsTheme(newsTheme, cacheTheme) || debug;
-            }
-
-            private String prepareSkinPackage(SkinTheme skinTheme) {
-                if (skinTheme.path.startsWith("file:///android_asset/")) { // copy to cache dir
-                    return copyAssetSkinPackage(skinTheme.path, isNeedCopy(skinTheme)).getAbsolutePath();
-                } else {
-                    String path = Uri.parse(skinTheme.path).getPath();
-                    if (!path.startsWith(SkinConfig.getSkinCacheDir(context).getAbsolutePath())) {
-                        File file = copySkinPackage(path, isNeedCopy(skinTheme));
-                        return file != null ? file.getAbsolutePath() : null;
-                    } else {
-                        return path;
-                    }
-                }
-            }
-
-            @Override
-            protected void onPreExecute() {
-                super.onPreExecute();
-
-                if (callback != null) {
-                    callback.onStart();
-                }
-            }
-
-            @Override
-            protected Resources doInBackground(SkinTheme... params) {
-                try {
-                    if (params.length == 1) {
-                        SkinTheme skinTheme = params[0];
-                        if (SkinUtil.isNewsTheme(skinTheme, SkinManager.this.currentTheme)) {
-                            synchronized (lock) {
-                                if (SkinUtil.isNewsTheme(skinTheme, SkinManager.this.currentTheme)) {
-                                    if (TextUtils.isEmpty(skinTheme.path)) {
-                                        return null;
-                                    }
-                                    String skinPkgPath = prepareSkinPackage(skinTheme);
-                                    if (TextUtils.isEmpty(skinPkgPath)) {
-                                        return null;
-                                    }
-                                    File file = new File(skinPkgPath);
-                                    if (!file.exists()) {
-                                        return null;
-                                    }
-                                    LogUtil.i("load skin package: " + skinPkgPath);
-
-                                    PackageManager mPm = context.getPackageManager();
-                                    PackageInfo mInfo = mPm.getPackageArchiveInfo(skinPkgPath, PackageManager.GET_ACTIVITIES);
-                                    skinPackageName = mInfo.packageName;
-
-                                    AssetManager assetManager = AssetManager.class.newInstance();
-                                    Method addAssetPath = assetManager.getClass().getMethod("addAssetPath", String.class);
-                                    addAssetPath.invoke(assetManager, skinPkgPath);
-
-                                    Resources superRes = context.getResources();
-                                    //获取了最关键的Resource对象
-                                    Resources skinResource = new Resources(assetManager, superRes.getDisplayMetrics(), superRes.getConfiguration());
-
-                                    SkinUtil.saveCurrentTheme(context, skinTheme.name);
-                                    SkinManager.this.currentTheme = skinTheme;
-                                    isSystemSkin = false;
-                                    return skinResource;
-                                } else {
-                                    return mResources;
-                                }
-                            }
-                        } else {
-                            return mResources;
-                        }
-                    }
-                    return null;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    return null;
-                }
-            }
-
-            @Override
-            protected void onPostExecute(Resources result) {
-                boolean hasSkinThemeChanged = mResources != result;
-                mResources = result;
-                if (mResources != null) {
-                    if (callback != null) {
-                        callback.onSuccess();
-                    }
-                    if (hasSkinThemeChanged) {
-                        notifySkinUpdate();
-                    }
-                } else {
-                    isSystemSkin = true;
-                    if (callback != null) {
-                        callback.onFailed();
-                    }
-                }
-            }
-
-        }.execute(theme);
-        
-#### 动态创建的View如何更新皮肤
-
-需要调用dynamicAddView()方法，本质上就是把View加入一个需要更新主题的View的集合里。
-
-	private void dynamicAddTitleView() {
-		TextView textView = new TextView(getActivity());
-		textView.setText("Small Article (动态new的View)");
-		RelativeLayout.LayoutParams param = new RelativeLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-		param.addRule(RelativeLayout.CENTER_IN_PARENT);
-		textView.setLayoutParams(param);
-		textView.setTextColor(getActivity().getResources().getColor(R.color.color_title_bar_text));
-		textView.setTextSize(20);
-		titleBarLayout.addView(textView);
-		
-		List<DynamicAttr> mDynamicAttr = new ArrayList<DynamicAttr>();
-		mDynamicAttr.add(new DynamicAttr(AttrFactory.TEXT_COLOR, R.color.color_title_bar_text));
-		dynamicAddView(textView, mDynamicAttr);
-	}
-	
-核心代码：
-![](https://raw.githubusercontent.com/JavaNoober/Skin/master/images/main3.png)
-
-#### 使用以及skin包的制作
-
-	xmlns:skin="http://schemas.android.com/android/skin"
-	...
-	  <TextView
-	     ...
-	     skin:enable="true" 
-	     ... />
-	     
-	
-skin包只需要存放相同文件名的资源文件即可，编译生成apk，将文件名改为.skin，以防用户误点。
+## 对比
+上述两种方法是市面上大多数换肤框架的实现原理。  
+通过Theme切换主题：  
+优点：实现简单，配置简单  
+缺点：需要重启应用；是固定皮肤，不能动态切换  
+通过AssetManager切换主题：  
+优点：不需要重启应用；可以动态加载主题，用于盈利 
+缺点：实现较为复杂；皮肤包比较占资源
